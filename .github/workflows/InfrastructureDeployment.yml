@@ -30,5 +30,5 @@ jobs:
       with:
         terraform_wrapper: false
     - name: Terraform Init
-      run: terraform init -backend-config=backend.conf
+      run: terraform init -backend-config="access_key=$TF_VAR_AZURE_ACCESS_KEY" -backend-config="storage_account_name=$TF_VAR_AZURE_STORAGE_ACCOUNT_NAME" -backend-config="container_name=$TF_VAR_AZURE_CONTAINER_NAME"
       working-directory: ./terraform
