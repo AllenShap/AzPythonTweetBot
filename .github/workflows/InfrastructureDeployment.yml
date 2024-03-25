@@ -14,6 +14,10 @@ jobs:
       TF_VAR_TWITTER_CONSUMER_SECRET: ${{ secrets.TWITTER_CONSUMER_SECRET }}
       TF_VAR_TWITTER_ACCESS_TOKEN: ${{ secrets.TWITTER_ACCESS_TOKEN }}
       TF_VAR_TWITTER_ACCESS_TOKEN_SECRET: ${{ secrets.TWITTER_ACCESS_TOKEN_SECRET }}
+      TF_VAR_AZURE_ACCESS_KEY: ${{ secrets.AZURE_ACCESS_KEY }}
+      TF_VAR_AZURE_STORAGE_ACCOUNT_NAME: ${{ secrets.AZURE_STORAGE_ACCOUNT_NAME }}
+      TF_VAR_AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
+
     steps:
     - name: Checkout
       uses: actions/checkout@v4.1.1
