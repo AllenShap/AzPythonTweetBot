@@ -17,7 +17,6 @@ jobs:
       TF_VAR_AZURE_ACCESS_KEY: ${{ secrets.AZURE_ACCESS_KEY }}
       TF_VAR_AZURE_STORAGE_ACCOUNT_NAME: ${{ secrets.AZURE_STORAGE_ACCOUNT_NAME }}
       TF_VAR_AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
-
     steps:
     - name: Checkout
       uses: actions/checkout@v4.1.1
@@ -31,4 +30,10 @@ jobs:
         terraform_wrapper: false
     - name: Terraform Init
       run: terraform init -backend-config="access_key=$TF_VAR_AZURE_ACCESS_KEY" -backend-config="storage_account_name=$TF_VAR_AZURE_STORAGE_ACCOUNT_NAME" -backend-config="container_name=$TF_VAR_AZURE_CONTAINER_NAME" -backend-config="key=terraform.tfstate"
+      working-directory: ./terraform
+    - name: Terraform Plan
+      run: terraform plan
+      working-directory: ./terraform
+    - name: Terraform Apply
+      run: terraform apply -no-color -input=false -auto-approve
       working-directory: ./terraform
