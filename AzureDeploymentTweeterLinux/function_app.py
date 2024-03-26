@@ -455,10 +455,15 @@ def MakeTweetWithInsertedEntryInCosmosDB(datesToBeInsertedIntoDB,titlesToBeInser
     auth.set_access_token(ACCESS_TOKEN, ACCESS_TOKEN_SECRET)
     api = tweepy.API(auth)
     client = tweepy.Client(consumer_key = CONSUMER_KEY, consumer_secret = CONSUMER_SECRET, access_token = ACCESS_TOKEN, access_token_secret = ACCESS_TOKEN_SECRET)
-
+    
+    global cleanedTweetDate                                            #Removes timezone offset from the tweet text
+    cleanedTweetDate = []
+    cleanedDate = datesToBeInsertedIntoDB.replace(" +0000", "")
+    cleanedTweetDate.append(cleanedDate)
+  
     #Try except is here incase the rate limit(50 posts per day. 1,500 per month) for the Twitter API is reached or a duplicate tweet is trying to be tweeted.
     try:
-        response = client.create_tweet(text = f"{datesToBeInsertedIntoDB},\n{titlesToBeInsertedIntoDB}\n{linksToBeInsertedIntoDB}\n")
+        response = client.create_tweet(text = f"{cleanedDate},\n{titlesToBeInsertedIntoDB}\n{linksToBeInsertedIntoDB}\n")
         print(response)
     except Exception as error:
         print("An exception occured:", error)
