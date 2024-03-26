@@ -147,7 +147,6 @@ resource "azurerm_linux_function_app" "USNYTPythonTwitterBotFA-PROD" {
   storage_account_access_key = azurerm_storage_account.USNYTPythonTwitterBotSA.primary_access_key
   service_plan_id            = azurerm_service_plan.ASP-USNYTPythonTwitterBot-617e.id
   content_share_force_disabled = true
-  daily_memory_time_quota = 0
 
   app_settings = {
   COSMOS_DB_ENDPOINT = azurerm_cosmosdb_account.USNYTPythonTwitterBotCDBAccount.endpoint,
@@ -184,7 +183,6 @@ resource "azurerm_linux_function_app_slot" "USNYTPythonTwitterBotFA-DEV" {
   storage_account_name       = azurerm_storage_account.USNYTPythonTwitterBotSA.name
   storage_account_access_key = azurerm_storage_account.USNYTPythonTwitterBotSA.primary_access_key
   content_share_force_disabled = true
-  daily_memory_time_quota = 0
 
   app_settings = {
   COSMOS_DB_ENDPOINT = azurerm_cosmosdb_account.USNYTPythonTwitterBotCDBAccount.endpoint,
