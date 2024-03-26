@@ -1,12 +1,18 @@
 name: Publish AZ FunctionApp after Terraform Deployment
 on:
-  workflow_dispatch:
+  workflow_run:
+    workflows: [ Terraform Build & Deploy ]
+    types: [completed]
+  push:
+    branches: [ main ]
+    paths:
+      - '/AzureDeploymentTweeterLinux'
 
 permissions:
   contents: write
   
 jobs:
-  build:
+  on-success:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
