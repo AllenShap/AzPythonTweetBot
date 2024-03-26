@@ -167,7 +167,6 @@ resource "azurerm_linux_function_app" "USNYTPythonTwitterBotFA-PROD" {
   site_config {
     application_insights_connection_string = azurerm_application_insights.AppInsights-USNYTPythonTwitterBot.connection_string
     application_insights_key               = azurerm_application_insights.AppInsights-USNYTPythonTwitterBot.instrumentation_key
-    always_on = true
     cors {
       allowed_origins = ["*"]
     }
@@ -201,7 +200,6 @@ resource "azurerm_linux_function_app_slot" "USNYTPythonTwitterBotFA-DEV" {
   site_config {
     application_insights_connection_string = azurerm_application_insights.AppInsights-USNYTPythonTwitterBot.connection_string
     application_insights_key               = azurerm_application_insights.AppInsights-USNYTPythonTwitterBot.instrumentation_key
-    always_on = true
     cors {
       allowed_origins = ["*"]
     }
