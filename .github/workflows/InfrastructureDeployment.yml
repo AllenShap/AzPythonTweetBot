@@ -1,7 +1,10 @@
 name: Terraform Build & Deploy
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - '/terraform'
 
 permissions:
   contents: write
