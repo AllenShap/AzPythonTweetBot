@@ -5,8 +5,8 @@ I plan to dockerize this and also integrate it with Kubernetes. Each function of
 
 Goals for the project:
 1. Make it into an Azure Function App so it does not have to be run locally.(95% complete as of 3/19/2024(ironing out bugs/anomolies)
-2. Make a terraform deployment for the Azure Function App. (100% functionally completeas of 3/19/2024(although I will probably end up making small changes from here on out to it)
-3. Complete the CI/CD pipeline for more or less a 1 click deployment from scratch if the whole infrastructure were to be destroyed.(95% complete as of 3/19/2024(just need to change the execution of both workflow actions from manual deployment)
+2. Make a terraform deployment for the Azure Function App. (100% functionally complete as of 3/19/2024(although I will probably end up making small changes from here on out to it)
+3. Complete the CI/CD pipeline for more or less a 1 click deployment from scratch if the whole infrastructure were to be destroyed.(95% complete as of 3/19/2024(just need to change the execution of both workflow actions from workflow_dispatch)
 
 Complicated part:
 1. Seperate the functions into their own files so each function is in it's own Docker container and the end goal is still achieved. (not started)
