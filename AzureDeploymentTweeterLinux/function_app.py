@@ -5,6 +5,8 @@ import json
 import os
 import time
 import tweepy
+import logging
+import azure.functions as func
 from os import listdir
 from azure.cosmos import CosmosClient, PartitionKey
 from azure.identity import DefaultAzureCredential
@@ -14,17 +16,13 @@ global CONTAINERNAME
 CONTAINERNAME = os.environ['COSMOS_DB_CONTAINER_NAME']                                                                   
 CREDENTIAL = os.environ['COSMOS_DB_CREDENTIAL']
 
-#These variables are for Twitter API credentials
 CONSUMER_KEY = os.environ['TWITTER_CONSUMER_KEY']                                                      #You need a Twitter dev account to get these credentials and make a tweet.
-CONSUMER_SECRET = os.environ['TWITTER_CONSUMER_SECRET']
+CONSUMER_SECRET = os.environ['TWITTER_CONSUMER_SECRET']                                                #These variables are for Twitter API credentials
 ACCESS_TOKEN = os.environ['TWITTER_ACCESS_TOKEN']
 ACCESS_TOKEN_SECRET = os.environ['TWITTER_ACCESS_TOKEN_SECRET']
 
-import logging
-import azure.functions as func
 
 app = func.FunctionApp()
-
 @app.function_name(name="mytimer")
 @app.schedule(schedule="0 */5 * * * 0-6", arg_name="myTimer", run_on_startup=True,
               use_monitor=False) 
@@ -34,52 +32,48 @@ def timer_trigger_tweeter(myTimer: func.TimerRequest) -> None:
         tzinfo=datetime.timezone.utc).isoformat()
     if myTimer.past_due:
         logging.info('The timer is past due!')
-
     global DBENTRYNEWSTIMESTAMPQUERYVALUE
     global DBENTRYNEWSTIMESTAMP
     global DBID
     global XMLQUERYCURRENTDATE
+    global client
+    global database
+    global partitionKeyPath
+    global container
+    global datesList
+    global linksList
+    global titleList
+    global allPubDates
+    global r
+
     DBENTRYNEWSTIMESTAMPQUERYVALUE = '{:%a, %d %b %Y}'.format(datetime.datetime.utcnow())
     XMLQUERYCURRENTDATE = [f'{DBENTRYNEWSTIMESTAMPQUERYVALUE}']
     DBENTRYNEWSTIMESTAMP = '{:%Y-%m-%d %H:%M:%S.%f}'.format(datetime.datetime.utcnow())
     DBID = '{:%a, %d %b %Y}'.format(datetime.datetime.utcnow())
     DBQUERYID = '{:%Y-%m-%d}'.format(datetime.datetime.utcnow())
-    global client
-    global database
-    global partitionKeyPath
-    global container
-
     client = CosmosClient(url=ENDPOINT, credential=CREDENTIAL)
     database = client.create_database_if_not_exists(id=DATABASENAME)
     partitionKeyPath = PartitionKey(path="/categoryId")
     container = database.create_container_if_not_exists(id=CONTAINERNAME, partition_key=partitionKeyPath)
-
-
-    global datesList
-    global linksList
-    global titleList
-    global allPubDates
     datesList = []
     linksList = []
     titleList = []
     allPubDates = []
-    global r
     r = None
     r = requests.get("https://www.nytimes.com/svc/collections/v1/publish/https://www.nytimes.com/section/us/rss.xml")
+
     countEntriesInCosmosDB()
     countEntriesInXML()
     getXMLEntriesMissingFromDB()
     searchForMissingXMLDatesInTheDB()
-
-
-
-    list(map(CompareTitlesInDBWithXMLEntriesToPreventDuplicateEntries, linelist))
-    RemoveDuplicateXMLEntries()
+    list(map(compareTitlesInDBWithXMLEntriesToPreventDuplicateEntries, linelist))
+    removeDuplicateXMLEntries()
+    checkForDuplicateArticleLinksInDB(uniqueLinks)
     list(map(insertIntoCosmosDB,uniqueDates,uniqueTitles,uniqueLinks))
-    list(map(MakeTweetWithInsertedEntryInCosmosDB,uniqueDates,uniqueTitles,uniqueLinks))
+    list(map(makeTweetWithInsertedEntryInCosmosDB,uniqueDates,uniqueTitles,uniqueLinks))
+
     datesList = None
     linksList = None
-
     try:
         deleteAllTxtFiles()
     except Exception as error:
@@ -111,7 +105,7 @@ def countEntriesInCosmosDB():
     if items == []:
         listOfItemsInDB = []
     if (len(items)) == 0:
-        print("No items are found in the database that are todays date.")
+        print("No items are found in the DB that are today's date.")
     else:
         listOfItemsInDB = []
         x = range(len(items))
@@ -122,7 +116,7 @@ def countEntriesInCosmosDB():
         with open("/tmp/MyFunction.Function1Output.txt","a", encoding='utf-8') as file_write:
             print("There are no items in the Cosmos DB. Getting the latest entry in the nytimes rss xml.", file=file_write)
     else:
-        print("found items in the DB that are todays date.")
+        print("Found items in the DB that are today's date.")
         with open("/tmp/MyFunction.Function1Output.txt","a", encoding='utf-8') as file_write:
             new = '\n'
             print(f"{new.join(listOfItemsInDB)}", file=file_write)
@@ -312,7 +306,7 @@ def searchForMissingXMLDatesInTheDB():
 
 
 
-def CompareTitlesInDBWithXMLEntriesToPreventDuplicateEntries(XMLtitlesToCompareWith):
+def compareTitlesInDBWithXMLEntriesToPreventDuplicateEntries(XMLtitlesToCompareWith):
     finalTitlesToBeInserted = []
     finalDatesToBeInserted = []
     finalLinksToBeInserted = []
@@ -328,7 +322,7 @@ def CompareTitlesInDBWithXMLEntriesToPreventDuplicateEntries(XMLtitlesToCompareW
     lines = None
 
     
-    print("CompareTitlesInDBWithXMLEntriesToPreventDuplicateEntries")
+    print("compareTitlesInDBWithXMLEntriesToPreventDuplicateEntries")
     cosmosDBQuery = "SELECT * FROM " +CONTAINERNAME+ " p WHERE p.EntryNewsTitle LIKE @EntryNewsTitle"                                                                                        
     EntryNewsTitle = XMLtitlesToCompareWith                                                         
     params = [dict(name="@EntryNewsTitle", value=EntryNewsTitle)]                                           
@@ -341,7 +335,7 @@ def CompareTitlesInDBWithXMLEntriesToPreventDuplicateEntries(XMLtitlesToCompareW
     output = json.dumps(items, indent=True)
 
     if not items:
-        print("The item to be inserted is not a duplicate")             #Crude explanation: WHEN YOU GET LATEST ENTRY, MATCH IT WITH LAST ENTRY MADE TO MAKE SURE IT'S NOT A DUPLICATE ENTRY BEING MADE RIGHT NOW, IF IT'S DUPLICATE. SAY ITS DUPLICATE AND THERE ARE NO RELEASES OUT YET TODAY.
+        print("The item to be inserted is not a duplicate")             #Crude explanation: When you get the latest entry in DB, match it with last entry made to make sure it's not a duplicate entry to be made, if it's duplicate; exclaim its a duplicate and won't be Tweeted/Inserted.
     else:
         itemsdict = items[0]                                                                  
         EntryInDB = itemsdict["EntryNewsTitle"]                                                   
@@ -354,7 +348,7 @@ def CompareTitlesInDBWithXMLEntriesToPreventDuplicateEntries(XMLtitlesToCompareW
         listOfTitlesInDB = []
         x = range(len(items))
         for i in x:
-            print(items[i]["EntryNewsTitle"] , "is a duplicate. It will not be inserted into the DB or tweeted.")
+            print(items[i]["EntryNewsTitle"] , "is a duplicate. It will not be inserted into the DB or Tweeted.")
             listOfTitlesInDB.append(items[i]["EntryNewsTitle"])
 
 
@@ -403,7 +397,7 @@ def CompareTitlesInDBWithXMLEntriesToPreventDuplicateEntries(XMLtitlesToCompareW
 
 
 
-def RemoveDuplicateXMLEntries():
+def removeDuplicateXMLEntries():
     global uniqueTitles
     global uniqueDates
     global uniqueLinks
@@ -432,6 +426,59 @@ def RemoveDuplicateXMLEntries():
             print(links , "is OK to be inserted into the db. confirmed non-duplicate")
     
 
+def checkForDuplicateArticleLinksInDB(linkToCheck):
+    global items
+    cosmosDBQuery = None
+    EntryNewsLink = None
+    params = None
+    results = None
+    items = None
+
+    global matchedLinks
+    global matchedTitles
+    global matchedDates
+    global updatedTitles
+    global updatedLinks
+    global updatedDates
+
+    matchedLinks = []                               #List that will hold old article entries
+    matchedTitles = []
+    matchedDates = []
+
+    updatedTitles = []                                      #List that will hold updated article entries
+    updatedLinks = []
+    updatedDates = []
+
+    for i in linkToCheck:
+        cosmosDBQuery = "SELECT * FROM " +CONTAINERNAME+ " p WHERE p.EntryNewsLink LIKE @EntryNewsLink"                                                                                       
+        EntryNewsLink = i
+        params = [dict(name="@EntryNewsLink", value=EntryNewsLink)]
+        results = container.query_items(
+        query=cosmosDBQuery, parameters=params, enable_cross_partition_query=True
+        )
+        items = [item for item in results]                                                      #This items variable is actually sort of a list of dictionary values which explains the index navigation below
+
+        if items != []:
+            matchedLinks.append(items[0]["EntryNewsLink"])                                      #Gets old article entries
+            matchedTitles.append(items[0]["EntryNewsTitle"])
+            matchedDates.append(items[0]["EntryNewsTimestamp"])
+
+            updatedLinks.append(i)                                                          #Gets updated article entries to Tweet
+            updatedTitles.append(uniqueTitles[uniqueLinks.index(i)])
+            updatedDates.append(uniqueDates[uniqueLinks.index(i)])
+
+    print("Old article entry values:")
+    print(matchedLinks)
+    print(matchedTitles)
+    print(matchedDates)
+    print("New updated article entry values:")
+    print(updatedLinks)
+    print(updatedTitles)
+    print(updatedDates)
+
+
+
+
 def insertIntoCosmosDB(uniqueDates,uniqueTitles,uniqueLinks):                            
     print("insertIntoCosmosDB")
     DBENTRYNEWSTIMESTAMP = '{:%Y-%m-%d %H:%M:%S.%f}'.format(datetime.datetime.utcnow())
@@ -449,28 +496,29 @@ def insertIntoCosmosDB(uniqueDates,uniqueTitles,uniqueLinks):
 
 
 
-def MakeTweetWithInsertedEntryInCosmosDB(datesToBeInsertedIntoDB,titlesToBeInsertedIntoDB,linksToBeInsertedIntoDB):
-    print("MAKING TWEET")
+def makeTweetWithInsertedEntryInCosmosDB(datesToBeInsertedIntoDB,titlesToBeInsertedIntoDB,linksToBeInsertedIntoDB):
+    print("Making Tweet")
     auth = tweepy.OAuthHandler(CONSUMER_KEY, CONSUMER_SECRET)
     auth.set_access_token(ACCESS_TOKEN, ACCESS_TOKEN_SECRET)
     api = tweepy.API(auth)
     client = tweepy.Client(consumer_key = CONSUMER_KEY, consumer_secret = CONSUMER_SECRET, access_token = ACCESS_TOKEN, access_token_secret = ACCESS_TOKEN_SECRET)
     
-    global cleanedTweetDate                                            #Removes timezone offset from the tweet text
-    cleanedTweetDate = []
+
+    cleanedTweetDate = []                                                   #Removes timezone offset from the Tweet text
     cleanedDate = datesToBeInsertedIntoDB.replace(" +0000", "")
     cleanedTweetDate.append(cleanedDate)
-  
-    #Try except is here incase the rate limit(50 posts per day. 1,500 per month) for the Twitter API is reached or a duplicate tweet is trying to be tweeted.
-    try:
-        response = client.create_tweet(text = f"{cleanedDate},\n{titlesToBeInsertedIntoDB}\n{linksToBeInsertedIntoDB}\n")
+    
+
+    if updatedLinks != [] and linksToBeInsertedIntoDB in updatedLinks:
+        response = client.create_tweet(text = "Article:" +matchedTitles[updatedLinks.index(linksToBeInsertedIntoDB)]+ "\nHas had it's title updated to:\n" +titlesToBeInsertedIntoDB+ "\nAt about:\n" +cleanedTweetDate[0]+ "\n" +linksToBeInsertedIntoDB+"")
         print(response)
-    except Exception as error:
-        print("An exception occured:", error)
-
-    #for future implementation
-    #response = client.create_tweet(text = "Bot went down for awhile, This is the latest article:\n" f"{datesToBeInsertedIntoDB},\n{titlesToBeInsertedIntoDB}\n{linksToBeInsertedIntoDB}\n")   
-
+    else:
+        try:                                                                                                                    #Try except is here incase the rate limit(50 posts per day. 1,500 per month) for the Twitter API is reached or a duplicate tweet is trying to be tweeted.
+            print("Making a new/non-updated Tweet")                                                                             #It also functions as a third duplicate check since Twitter doesnt allow Tweets with the exact same content to be tweeted twice.
+            response = client.create_tweet(text = f"{cleanedDate},\n{titlesToBeInsertedIntoDB}\n{linksToBeInsertedIntoDB}\n")
+            print(response)
+        except Exception as error:
+            print("An exception occured:", error)
 
 
 def deleteAllTxtFiles():
