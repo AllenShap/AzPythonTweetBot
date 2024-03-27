@@ -1,5 +1,6 @@
 name: Publish AZ FunctionApp after Terraform Deployment
 on:
+  workflow_dispatch:
   workflow_run:
     workflows: [ Terraform Build & Deploy ]
     types: [completed]
