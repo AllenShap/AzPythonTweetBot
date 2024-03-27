@@ -16,6 +16,6 @@ Complicated part:
 Optional Goals:
 1. Deploy the project using Helm/Ansible/Jenkins. (not started)
 2. Modify Python Function app so that the timestamp for the tweets is not as obnoxious.(100% complete as of 3/25/2024)
-3. Modify Python Function app so that whenever a news article title is changed; it's clearly stated that the news article was changed instead of simply tweeting out the article again with a new title. (not started)
+3. Modify Python Function app so that whenever a news article title is changed; it's clearly stated that the news article was changed instead of simply tweeting out the article again with a new title. (about 50% done and 50% accurate with tweeting the article - testing this in my other personal github account as this one is meant to be somewhat "professional" appearing)
 
 Some of the coding decisions I made are as a result of this being a complete personal deployment since this project is soley created and handled by myself.
