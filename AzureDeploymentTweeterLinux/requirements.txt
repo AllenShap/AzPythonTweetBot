@@ -3,7 +3,13 @@
 # Manually managing azure-functions-worker may cause unexpected issues
 
 azure-functions
-requests
-tweepy
 azure.cosmos
 azure.identity
+azure-storage-blob
+azure-ai-textanalytics
+requests
+tweepy
+selenium
+webdriver-manager
+pypdf
+pillow
