@@ -22,7 +22,6 @@ import base64
 import uuid
 from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient, generate_blob_sas, BlobSasPermissions
 from azure.core.credentials import AzureKeyCredential
-from azure.ai.formrecognizer import DocumentAnalysisClient
 from azure.ai.textanalytics import TextAnalyticsClient
 from azure.ai.textanalytics import ExtractiveSummaryAction
 from azure.ai.textanalytics import AbstractiveSummaryAction
