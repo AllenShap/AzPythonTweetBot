@@ -10,6 +10,25 @@ import azure.functions as func
 from os import listdir
 from azure.cosmos import CosmosClient, PartitionKey
 from azure.identity import DefaultAzureCredential
+from PIL import Image, ImageDraw, ImageFont
+import textwrap
+from selenium import webdriver
+from selenium.webdriver.firefox.service import Service
+from selenium.webdriver.common.print_page_options import PrintOptions
+from webdriver_manager.firefox import GeckoDriverManager
+from datetime import timedelta
+from datetime import timezone
+import base64
+import uuid
+from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient, generate_blob_sas, BlobSasPermissions
+from azure.core.credentials import AzureKeyCredential
+from azure.ai.formrecognizer import DocumentAnalysisClient
+from azure.ai.textanalytics import TextAnalyticsClient
+from azure.ai.textanalytics import ExtractiveSummaryAction
+from azure.ai.textanalytics import AbstractiveSummaryAction
+from pypdf import PdfReader 
+
+
 ENDPOINT = os.environ['COSMOS_DB_ENDPOINT']                                                         
 DATABASENAME = os.environ['COSMOS_DB_NAME']
 global CONTAINERNAME
@@ -17,9 +36,16 @@ CONTAINERNAME = os.environ['COSMOS_DB_CONTAINER_NAME']
 CREDENTIAL = os.environ['COSMOS_DB_CREDENTIAL']
 
 CONSUMER_KEY = os.environ['TWITTER_CONSUMER_KEY']                                                      #You need a Twitter dev account to get these credentials and make a tweet.
-CONSUMER_SECRET = os.environ['TWITTER_CONSUMER_SECRET']                                                #These variables are for Twitter API credentials
+CONSUMER_SECRET = os.environ['TWITTER_CONSUMER_SECRET']                                                 #These variables are for Twitter API credentials
 ACCESS_TOKEN = os.environ['TWITTER_ACCESS_TOKEN']
 ACCESS_TOKEN_SECRET = os.environ['TWITTER_ACCESS_TOKEN_SECRET']
+
+
+key2 = os.environ['COGNITIVE_KEY']
+endpoint2 = os.environ['COGNITIVE_ENDPOINT']
+                              
+
+
 
 
 app = func.FunctionApp()
@@ -122,7 +148,6 @@ def countEntriesInCosmosDB():
             print(f"{new.join(listOfItemsInDB)}", file=file_write)
 
 
-
 def countEntriesInXML(): 
     f = None
     lines = None
@@ -166,7 +191,6 @@ def countEntriesInXML():
                     print(i, file=file_write)
 
 
-
 def getXMLEntriesMissingFromDB():
     f = None
     lines = None
@@ -174,9 +198,6 @@ def getXMLEntriesMissingFromDB():
     root = None
     var = None
     loopedPubDates = None
-
-
-
 
     f = open("/tmp/MyFunction.CountEntriesInXML.txt", "r", encoding='utf-8')
     lines = f.readlines()
@@ -304,8 +325,6 @@ def searchForMissingXMLDatesInTheDB():
     f.close()
 
 
-
-
 def compareTitlesInDBWithXMLEntriesToPreventDuplicateEntries(XMLtitlesToCompareWith):
     finalTitlesToBeInserted = []
     finalDatesToBeInserted = []
@@ -396,7 +415,6 @@ def compareTitlesInDBWithXMLEntriesToPreventDuplicateEntries(XMLtitlesToCompareW
     f.close()
 
 
-
 def removeDuplicateXMLEntries():
     global uniqueTitles
     global uniqueDates
@@ -477,8 +495,6 @@ def checkForDuplicateArticleLinksInDB(linkToCheck):
     print(updatedDates)
 
 
-
-
 def insertIntoCosmosDB(uniqueDates,uniqueTitles,uniqueLinks):                            
     print("insertIntoCosmosDB")
     DBENTRYNEWSTIMESTAMP = '{:%Y-%m-%d %H:%M:%S.%f}'.format(datetime.datetime.utcnow())
@@ -490,10 +506,143 @@ def insertIntoCosmosDB(uniqueDates,uniqueTitles,uniqueLinks):
         "EntryNewsTitle": uniqueTitles,
         "EntryNewsLink": uniqueLinks
     }
-
     container.create_item(new_item)
     print("Inserted new item into CosmosDB")
 
+
+def seleniumfunction(LinkToGet):
+    extension_path = "./remove_javascript.xpi"
+    extension_path2 = "./image_block-5.0.xpi"
+    extension_path3 = "./ublock_origin-1.56.0.xpi"
+    download_dir = "/tmp/"
+    options = webdriver.FirefoxOptions()
+    options.set_preference("browser.download.manager.showWhenStarting",False)
+    options.set_preference("browser.download.downloadDir", download_dir)
+    options.set_preference("browser.helperApps.alwaysAsk.force", False)
+    options.set_preference("browser.download.folderList", 2)
+    options.set_preference("browser.download.manager.useWindow", False)
+    options.set_preference("browser.download.dir", download_dir)
+    options.set_preference("permissions.default.image", 2)
+    options.set_preference("permissions.default.stylesheet", 2)
+    options.set_preference("media.autoplay.default", 1) 
+    options.set_preference("media.autoplay.enabled.user-gestures-needed", False)
+    options.set_preference("media.autoplay.blocking_policy", 2)
+    options.set_preference("browser.display.use_document_fonts", 0)
+    options.set_preference("extensions.contentblocker.enabled", True)
+    options.set_preference('dom.ipc.plugins.enabled.libflashplayer.so', False)
+    options.set_preference("browser.helperApps.neverAsk.saveToDisk", 
+                           "application/pdf, application/force-download")
+    options.add_argument('--headless')
+
+    driver = webdriver.Firefox(options=options)
+
+    driver.install_addon(extension_path, temporary=True)
+    driver.install_addon(extension_path2, temporary=True)
+    driver.install_addon(extension_path3, temporary=True)
+
+    driver.get(LinkToGet)   
+    driver.switch_to.window(driver.window_handles[0])
+    time.sleep(2)
+
+
+    RATIO_MULTIPLIER = 2.5352112676056335
+    S = lambda X: driver.execute_script('return document.body.parentNode.scroll'+X)
+    pdf_scaler = .01
+    height = S('Height')
+    weight = S('Width')
+    print_options = PrintOptions()
+    print_options.page_height = (height*pdf_scaler)*RATIO_MULTIPLIER
+    print_options.page_width = (weight*pdf_scaler)*RATIO_MULTIPLIER
+    
+
+    pdf = driver.print_page(print_options=print_options)
+    driver.close()
+    pdf_bytes = base64.b64decode(pdf)
+
+    with open("/tmp/seleniumOutput.pdf", "wb") as fh:                                   
+        fh.write(pdf_bytes)
+
+
+def pyPDFpdfToTXT():
+    reader = PdfReader('/tmp/seleniumOutput.pdf') 
+    page = reader.pages[0] 
+    text = page.extract_text()
+    with open("/tmp/testoutput.txt", "a", encoding='utf-8') as file:
+        file.write(text)
+
+
+def authenticate_client():
+    ta_credential = AzureKeyCredential(key2)
+    text_analytics_client = TextAnalyticsClient(
+            endpoint=endpoint2, 
+            credential=ta_credential)
+    return text_analytics_client
+
+
+def sample_extractive_summarization():
+    global summaryToTweet
+    summaryToTweet = None
+
+    client = authenticate_client()
+    f = open("/tmp/testoutput.txt", "r", encoding='utf-8')
+    textToSummarize = f.read()
+    f.close()
+
+    document = [
+        textToSummarize
+    ]
+    poller = client.begin_abstract_summary(document, sentence_count=4)
+    abstract_summary_results = poller.result()
+    for result in abstract_summary_results:
+        if result.kind == "AbstractiveSummarization":
+            summaryToTweet = result["summaries"][0]["text"]
+            print("ABSTRACTIVE summary complete:")
+            [print(f"{summary.text}\n") for summary in result.summaries]
+        elif result.is_error is True:
+            print("...Is an error with code '{}' and message '{}'".format(
+                result.error.code, result.error.message
+            ))
+
+            poller = client.begin_analyze_actions(document,actions=[ExtractiveSummaryAction(max_sentence_count=4)],)            #if the initial abstractive summary fails, fall back to an extractive summary instead
+            document_results = poller.result()
+            for result in document_results:
+                extract_summary_result = result[0]  # first document, first result
+                if extract_summary_result.is_error:
+                    print("...Is an error with code '{}' and message '{}'".format(
+                        extract_summary_result.code, extract_summary_result.message
+                        ))
+                else:
+                    print("EXTRACTIVE summary complete since an ABSTRACTIVE one wasn't possible : \n{}".format(
+                        " ".join([sentence.text for sentence in extract_summary_result.sentences]))
+                    )
+                    summaryToTweet = "{}".format(" ".join([sentence.text for sentence in extract_summary_result.sentences]))
+
+
+def createPNGFromTXT():
+    if len(summaryToTweet) < 250:
+        img = Image.new('RGB', (350, 150), (23, 102, 192))
+        d = ImageDraw.Draw(img)
+        lines = textwrap.wrap(summaryToTweet, width=50, fix_sentence_endings=True)
+        d.multiline_text((10, 10),  '\n'.join(lines),fill=(255, 255, 255), align="left", font_size=14, spacing=1)
+        img.save("/tmp/MediaToTweet.png", 'png')
+    else:
+        img = Image.new('RGB', (350, 250), (23, 102, 192))
+        d = ImageDraw.Draw(img)
+        lines = textwrap.wrap(summaryToTweet, width=50, fix_sentence_endings=True)
+        d.multiline_text((10, 10),  '\n'.join(lines),fill=(255, 255, 255), align="left", font_size=14, spacing=1)
+        img.save("/tmp/MediaToTweet.png", 'png')
+
+
+def summarizationFileDeletion():
+    with os.scandir(path="/tmp/") as it:
+        for entry in it:
+            if entry.name.startswith('seleniumOutput.') and entry.is_file():
+                print(entry.name)
+                os.remove(entry)
+            if entry.name.startswith('testoutput.') and entry.is_file():
+                print(entry.name)
+                os.remove(entry)
+    print("The program has succesfully executed. Summarization Files from /tmp in the Linux OS have been deleted")
 
 
 def makeTweetWithInsertedEntryInCosmosDB(datesToBeInsertedIntoDB,titlesToBeInsertedIntoDB,linksToBeInsertedIntoDB):
@@ -510,12 +659,20 @@ def makeTweetWithInsertedEntryInCosmosDB(datesToBeInsertedIntoDB,titlesToBeInser
     
 
     if updatedLinks != [] and linksToBeInsertedIntoDB in updatedLinks:
-        response = client.create_tweet(text = "Article:" +matchedTitles[updatedLinks.index(linksToBeInsertedIntoDB)]+ "\nHas had it's title updated to:\n" +titlesToBeInsertedIntoDB+ "\nAt about:\n" +cleanedTweetDate[0]+ "\n" +linksToBeInsertedIntoDB+"")
+        response = client.create_tweet(text = "Article:" +matchedTitles[updatedLinks.index(linksToBeInsertedIntoDB)]+ "\nHad it's title updated to:\n" +titlesToBeInsertedIntoDB+ "\nAt about:\n" +cleanedTweetDate[0]+ "\n" +linksToBeInsertedIntoDB+"")
         print(response)
     else:
         try:                                                                                                                    #Try except is here incase the rate limit(50 posts per day. 1,500 per month) for the Twitter API is reached or a duplicate tweet is trying to be tweeted.
-            print("Making a new/non-updated Tweet")                                                                             #It also functions as a third duplicate check since Twitter doesnt allow Tweets with the exact same content to be tweeted twice.
-            response = client.create_tweet(text = f"{cleanedDate},\n{titlesToBeInsertedIntoDB}\n{linksToBeInsertedIntoDB}\n")
+            print("Making a new/non-updated Tweet")                                                                             #It also functions as a third duplicate check since Twitter doesnt allow Tweets with the exact same content to be tweeted twice.           
+            seleniumfunction(linksToBeInsertedIntoDB)           
+            pyPDFpdfToTXT()
+            authenticate_client()
+            sample_extractive_summarization()
+            createPNGFromTXT()
+            summarizationFileDeletion()
+            media_path = "/tmp/MediaToTweet.png"
+            uploaded_media = api.media_upload(media_path)
+            response = client.create_tweet(text = f"{cleanedDate},\n{titlesToBeInsertedIntoDB}\n{linksToBeInsertedIntoDB} ""Article summary below: \n", media_ids=[uploaded_media.media_id])
             print(response)
         except Exception as error:
             print("An exception occured:", error)
@@ -525,6 +682,9 @@ def deleteAllTxtFiles():
     with os.scandir(path="/tmp/") as it:
         for entry in it:
             if entry.name.startswith('MyFunction.') and entry.is_file():
+                print(entry.name)
+                os.remove(entry)
+            if entry.name.startswith('MediaToTweet.') and entry.is_file():
                 print(entry.name)
                 os.remove(entry)
     print("The program has succesfully executed. Files from /tmp in the Linux OS have been deleted")
