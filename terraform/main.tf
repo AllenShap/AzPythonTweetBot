@@ -36,7 +36,7 @@ variable "TWITTER_ACCESS_TOKEN_SECRET" {
 
 resource "azurerm_resource_group" "RG-USNYTPythonTwitterBot" {
   name     = "USNYTPythonTwitterBot"
-  location = "westus2"
+  location = "eastus"
 }
 
 resource "azurerm_storage_account" "USNYTPythonTwitterBotSA" {
@@ -55,6 +55,17 @@ resource "azurerm_storage_container" "USNYTPythonTwitterBotSAContainer" {
   container_access_type = "private"
 
   depends_on = [azurerm_storage_account.USNYTPythonTwitterBotSA]
+}
+
+
+resource "azurerm_cognitive_account" "CA-USNYTPythonTwitterBot" {
+  name                = "CA-USNYTPythonTwitterBot"
+  location            = azurerm_resource_group.RG-USNYTPythonTwitterBot.location
+  resource_group_name = azurerm_resource_group.RG-USNYTPythonTwitterBot.name
+  kind                = "TextAnalytics"
+  sku_name            = "S"
+
+  depends_on = [azurerm_resource_group.RG-USNYTPythonTwitterBot]
 }
 
 
@@ -149,6 +160,8 @@ resource "azurerm_linux_function_app" "USNYTPythonTwitterBotFA-PROD" {
   content_share_force_disabled = true
 
   app_settings = {
+  COGNITIVE_ENDPOINT = azurerm_cognitive_account.CA-USNYTPythonTwitterBot.endpoint,
+  COGNITIVE_KEY = azurerm_cognitive_account.CA-USNYTPythonTwitterBot.primary_access_key,
   COSMOS_DB_ENDPOINT = azurerm_cosmosdb_account.USNYTPythonTwitterBotCDBAccount.endpoint,
   COSMOS_DB_NAME = azurerm_cosmosdb_sql_database.USNYTPythonTwitterBotCDB.name,
   COSMOS_DB_CONTAINER_NAME = azurerm_cosmosdb_sql_container.USNYTPythonTwitterBotCDBContainer.name,
@@ -160,7 +173,7 @@ resource "azurerm_linux_function_app" "USNYTPythonTwitterBotFA-PROD" {
   }
 
   sticky_settings {
-     app_setting_names = ["TWITTER_CONSUMER_KEY","TWITTER_CONSUMER_SECRET","TWITTER_ACCESS_TOKEN","TWITTER_ACCESS_TOKEN_SECRET","COSMOS_DB_ENDPOINT","COSMOS_DB_NAME","COSMOS_DB_CONTAINER_NAME","COSMOS_DB_CREDENTIAL","FUNCTIONS_EXTENSION_VERSION","AzureWebJobsStorage","APPLICATIONINSIGHTS_CONNECTION_STRING","APPINSIGHTS_INSTRUMENTATIONKEY","FUNCTIONS_WORKER_RUNTIME","AzureWebJobsDashboard"]
+     app_setting_names = ["COGNITIVE_ENDPOINT","COGNITIVE_KEY","TWITTER_CONSUMER_KEY","TWITTER_CONSUMER_SECRET","TWITTER_ACCESS_TOKEN","TWITTER_ACCESS_TOKEN_SECRET","COSMOS_DB_ENDPOINT","COSMOS_DB_NAME","COSMOS_DB_CONTAINER_NAME","COSMOS_DB_CREDENTIAL","FUNCTIONS_EXTENSION_VERSION","AzureWebJobsStorage","APPLICATIONINSIGHTS_CONNECTION_STRING","APPINSIGHTS_INSTRUMENTATIONKEY","FUNCTIONS_WORKER_RUNTIME","AzureWebJobsDashboard"]
   }
 
   site_config {
@@ -185,6 +198,8 @@ resource "azurerm_linux_function_app_slot" "USNYTPythonTwitterBotFA-DEV" {
   content_share_force_disabled = true
 
   app_settings = {
+  COGNITIVE_ENDPOINT = azurerm_cognitive_account.CA-USNYTPythonTwitterBot.endpoint,
+  COGNITIVE_KEY = azurerm_cognitive_account.CA-USNYTPythonTwitterBot.primary_access_key,
   COSMOS_DB_ENDPOINT = azurerm_cosmosdb_account.USNYTPythonTwitterBotCDBAccount.endpoint,
   COSMOS_DB_NAME = azurerm_cosmosdb_sql_database.USNYTPythonTwitterBotCDB.name,
   COSMOS_DB_CONTAINER_NAME = azurerm_cosmosdb_sql_container.USNYTPythonTwitterBotCDBContainer.name,
