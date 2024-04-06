@@ -618,17 +618,24 @@ def sample_extractive_summarization():
 
 
 def createPNGFromTXT():
+    font = ImageFont.truetype("ChirpRegular.ttf",18)
     if len(summaryToTweet) < 250:
-        img = Image.new('RGB', (350, 150), (23, 102, 192))
+        img = Image.new('RGB', (350, 250), (0, 0, 0))
         d = ImageDraw.Draw(img)
-        lines = textwrap.wrap(summaryToTweet, width=50, fix_sentence_endings=True)
-        d.multiline_text((10, 10),  '\n'.join(lines),fill=(255, 255, 255), align="left", font_size=14, spacing=1)
+        lines = textwrap.wrap(summaryToTweet, width=35, fix_sentence_endings=True)
+        d.multiline_text((10, 10),  '\n'.join(lines),fill=(255, 255, 255), align="left", font_size=14, spacing=1, font=font)
+        img.save("/tmp/MediaToTweet.png", 'png')
+    if len(summaryToTweet) > 350:
+        img = Image.new('RGB', (350, 350), (0, 0, 0))
+        d = ImageDraw.Draw(img)
+        lines = textwrap.wrap(summaryToTweet, width=35, fix_sentence_endings=True)
+        d.multiline_text((10, 10),  '\n'.join(lines),fill=(255, 255, 255), align="left", font_size=14, spacing=1, font=font)
         img.save("/tmp/MediaToTweet.png", 'png')
     else:
-        img = Image.new('RGB', (350, 250), (23, 102, 192))
+        img = Image.new('RGB', (350, 250), (0, 0, 0))
         d = ImageDraw.Draw(img)
-        lines = textwrap.wrap(summaryToTweet, width=50, fix_sentence_endings=True)
-        d.multiline_text((10, 10),  '\n'.join(lines),fill=(255, 255, 255), align="left", font_size=14, spacing=1)
+        lines = textwrap.wrap(summaryToTweet, width=35, fix_sentence_endings=True)
+        d.multiline_text((10, 10),  '\n'.join(lines),fill=(255, 255, 255), align="left", font_size=14, spacing=1, font=font)
         img.save("/tmp/MediaToTweet.png", 'png')
 
 
