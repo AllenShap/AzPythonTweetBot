@@ -590,7 +590,7 @@ def sample_extractive_summarization():
     document = [
         textToSummarize
     ]
-    poller = client.begin_abstract_summary(document, sentence_count=4)
+    poller = client.begin_abstract_summary(document, sentence_count=5)
     abstract_summary_results = poller.result()
     for result in abstract_summary_results:
         if result.kind == "AbstractiveSummarization":
@@ -602,7 +602,7 @@ def sample_extractive_summarization():
                 result.error.code, result.error.message
             ))
 
-            poller = client.begin_analyze_actions(document,actions=[ExtractiveSummaryAction(max_sentence_count=4)],)            #if the initial abstractive summary fails, fall back to an extractive summary instead
+            poller = client.begin_analyze_actions(document,actions=[ExtractiveSummaryAction(max_sentence_count=5)],)            #if the initial abstractive summary fails, fall back to an extractive summary instead
             document_results = poller.result()
             for result in document_results:
                 extract_summary_result = result[0]  # first document, first result
