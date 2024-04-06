@@ -632,7 +632,7 @@ def createPNGFromTXT():
         d.multiline_text((10, 10),  '\n'.join(lines),fill=(255, 255, 255), align="left", spacing=1, font=font)
         img.save("/tmp/MediaToTweet.png", 'png')
     if len(summaryToTweet) > 500:
-        img = Image.new('RGB', (350, 400), (0, 0, 0))
+        img = Image.new('RGB', (350, 450), (0, 0, 0))
         d = ImageDraw.Draw(img)
         lines = textwrap.wrap(summaryToTweet, width=35, fix_sentence_endings=True)
         d.multiline_text((10, 10),  '\n'.join(lines),fill=(255, 255, 255), align="left", spacing=1, font=font)
