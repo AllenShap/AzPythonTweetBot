@@ -626,7 +626,7 @@ def createPNGFromTXT():
     elif len(summaryToTweet) > 350 and len(summaryToTweet) > 400 and len(summaryToTweet) <= 500:
         img = Image.new('RGB', (350, 325), (0, 0, 0))
     elif len(summaryToTweet) > 350 and len(summaryToTweet) > 400 and len(summaryToTweet) >= 500:
-        img = Image.new('RGB', (350, 380), (0, 0, 0))
+        img = Image.new('RGB', (350, 410), (0, 0, 0))
 
     d = ImageDraw.Draw(img)
     lines = textwrap.wrap(summaryToTweet, width=35, fix_sentence_endings=True)
