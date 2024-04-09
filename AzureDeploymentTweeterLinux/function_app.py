@@ -642,7 +642,7 @@ def createPNGFromTXT():
     img = Image.new('RGB', (350, totalLengthOfImage), (0, 0, 0))
     d = ImageDraw.Draw(img)
     d.multiline_text((10, 10), '\n'.join(lines), fill=(255, 255, 255), align="left", spacing=1, font=font)
-    img.save("MediaToTweet.png", 'png')
+    img.save("/tmp/MediaToTweet.png", 'png')
 
 
 def summarizationFileDeletion():
