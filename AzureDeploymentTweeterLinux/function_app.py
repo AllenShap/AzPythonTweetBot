@@ -618,20 +618,31 @@ def sample_extractive_summarization():
 
 
 def createPNGFromTXT():
-    font = ImageFont.truetype("PublicSans-Regular.otf", 18)
-    if len(summaryToTweet) <= 250:
-        img = Image.new('RGB', (350, 250), (0, 0, 0))
-    elif len(summaryToTweet) > 250 and len(summaryToTweet) <= 400:
-        img = Image.new('RGB', (350, 275), (0, 0, 0))
-    elif len(summaryToTweet) > 350 and len(summaryToTweet) > 400 and len(summaryToTweet) <= 500:
-        img = Image.new('RGB', (350, 325), (0, 0, 0))
-    elif len(summaryToTweet) > 350 and len(summaryToTweet) > 400 and len(summaryToTweet) >= 500:
-        img = Image.new('RGB', (350, 410), (0, 0, 0))
-
-    d = ImageDraw.Draw(img)
+    totalLengthOfImage = 0
+  
     lines = textwrap.wrap(summaryToTweet, width=35, fix_sentence_endings=True)
+  
+    for line in lines:
+        if len(lines) <= 3:
+            totalLengthOfImage = totalLengthOfImage + 30
+        elif len(lines) <= 6:
+            totalLengthOfImage = totalLengthOfImage + 28
+        elif len(lines) <= 9:
+            totalLengthOfImage = totalLengthOfImage + 26
+        elif len(lines) <= 12:
+            totalLengthOfImage = totalLengthOfImage + 24
+        elif len(lines) <= 15:
+            totalLengthOfImage = totalLengthOfImage + 22
+        elif len(lines) <= 18:
+            totalLengthOfImage = totalLengthOfImage + 20
+        else:
+            totalLengthOfImage = totalLengthOfImage + 20
+          
+    font = ImageFont.truetype("PublicSans-Regular.otf", 18)
+    img = Image.new('RGB', (350, totalLengthOfImage), (0, 0, 0))
+    d = ImageDraw.Draw(img)
     d.multiline_text((10, 10), '\n'.join(lines), fill=(255, 255, 255), align="left", spacing=1, font=font)
-    img.save("/tmp/MediaToTweet.png", 'png')
+    img.save("MediaToTweet.png", 'png')
 
 
 def summarizationFileDeletion():
