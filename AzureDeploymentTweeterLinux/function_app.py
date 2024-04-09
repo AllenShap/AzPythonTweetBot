@@ -541,6 +541,49 @@ def seleniumfunction(LinkToGet):
     driver.switch_to.window(driver.window_handles[0])
     time.sleep(2)
 
+    def driverScriptsToExecute():
+        driver.execute_script("""
+        var element = document.querySelector(".css-103l8m3");
+        if (element)
+        element.parentNode.removeChild(element);
+        """)
+        driver.execute_script("""
+        var element = document.querySelector(".css-3xqm5e");
+        if (element)
+        element.parentNode.removeChild(element);
+        """)
+        driver.execute_script("""
+        var element = document.querySelector(".css-kzd6pg");
+        if (element)
+        element.parentNode.removeChild(element);
+        """)
+        driver.execute_script("""
+        var element = document.querySelector(".css-13ldwoe");
+        if (element)
+        element.parentNode.removeChild(element);
+        """)
+        driver.execute_script("""
+        var element = document.querySelector(".css-1l8buln");
+        if (element)
+        element.parentNode.removeChild(element);
+        """)
+        driver.execute_script("""
+        var element = document.querySelector(".css-1n0orw4");
+        if (element)
+        element.parentNode.removeChild(element);
+        """)
+        driver.execute_script("""
+        var element = document.querySelector(".evmxed20");
+        if (element)
+        element.parentNode.removeChild(element);
+        """)
+        driver.execute_script("""
+        var element = document.querySelector(".e89cr9k1");
+        if (element)
+        element.parentNode.removeChild(element);
+        """)
+
+    driverScriptsToExecute()
 
     RATIO_MULTIPLIER = 2.5352112676056335
     S = lambda X: driver.execute_script('return document.body.parentNode.scroll'+X)
