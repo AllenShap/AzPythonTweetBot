@@ -678,7 +678,6 @@ def makeTweetWithInsertedEntryInCosmosDB(datesToBeInsertedIntoDB,titlesToBeInser
             print("Making a new/non-updated Tweet")                                                                             #It also functions as a third duplicate check since Twitter doesnt allow Tweets with the exact same content to be tweeted twice.           
             seleniumfunction(linksToBeInsertedIntoDB)           
             pyPDFpdfToTXT()
-            authenticate_client()
             sample_extractive_summarization()
             createPNGFromTXT()
             summarizationFileDeletion()
