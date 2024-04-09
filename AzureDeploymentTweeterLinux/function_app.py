@@ -97,8 +97,6 @@ def timer_trigger_tweeter(myTimer: func.TimerRequest) -> None:
     list(map(insertIntoCosmosDB,uniqueDates,uniqueTitles,uniqueLinks))
     list(map(makeTweetWithInsertedEntryInCosmosDB,uniqueDates,uniqueTitles,uniqueLinks))
 
-    datesList = None
-    linksList = None
     try:
         deleteAllTxtFiles()
     except Exception as error:
