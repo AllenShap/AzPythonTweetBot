@@ -712,17 +712,17 @@ def makeTweetWithInsertedEntryInCosmosDB(datesToBeInsertedIntoDB,titlesToBeInser
     
 
     if updatedLinks != [] and linksToBeInsertedIntoDB in updatedLinks:
-        response = client.create_tweet(text = "Article:" +matchedTitles[updatedLinks.index(linksToBeInsertedIntoDB)]+ "\nHad it's title updated to:\n" +titlesToBeInsertedIntoDB+ "\nAt about:\n" +cleanedTweetDate[0]+ "\n" +linksToBeInsertedIntoDB+"")
+        response = client.create_tweet(text = "Article:" +matchedTitles[updatedLinks.index(linksToBeInsertedIntoDB)]+ "\nHad it's title updated to:\n" +titlesToBeInsertedIntoDB+ "\nAt:\n" +cleanedTweetDate[0]+ "\n" +linksToBeInsertedIntoDB+"")
         print(response)
-    else:
-        try:                                                                                                                    #Try except is here incase the rate limit(50 posts per day. 1,500 per month) for the Twitter API is reached or a duplicate tweet is trying to be tweeted.
-            print("Making a new/non-updated Tweet")                                                                             #It also functions as a third duplicate check since Twitter doesnt allow Tweets with the exact same content to be tweeted twice.           
-            seleniumfunction(linksToBeInsertedIntoDB)           
-            pyPDFpdfToTXT()
-            sample_extractive_summarization()
-            createPNGFromTXT()
-            summarizationFileDeletion()
-            media_path = "/tmp/MediaToTweet.png"
+    else:                                                                                                                #Try except is here incase the rate limit(50 posts per day. 1,500 per month) for the Twitter API is reached or a duplicate tweet is trying to be tweeted.
+        print("Making a new/non-updated Tweet")                                                                             #It also functions as a third duplicate check since Twitter doesnt allow Tweets with the exact same content to be tweeted twice.           
+        seleniumfunction(linksToBeInsertedIntoDB)           
+        pyPDFpdfToTXT()
+        sample_extractive_summarization()
+        createPNGFromTXT()
+        summarizationFileDeletion()
+        media_path = "/tmp/MediaToTweet.png"
+        try:
             uploaded_media = api.media_upload(media_path)
             response = client.create_tweet(text = f"{cleanedDate},\n{titlesToBeInsertedIntoDB}\n{linksToBeInsertedIntoDB} ""Article summary below: \n", media_ids=[uploaded_media.media_id])
             print(response)
