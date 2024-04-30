@@ -52,9 +52,9 @@ AZURE_APPLICATION_INSIGHTS_CONNECTION_STRING = os.environ['APPLICATIONINSIGHTS_C
 
 class SpanEnrichingProcessor(SpanProcessor):
     def on_end(self, span):
-        if not span.name.startswith("TESTDEV-"):
-            span._name = "TESTDEV-" + span.name
-            span._attributes["enduser.id"] = "DEPLOYDEV"
+        if not span.name.startswith("OfficialDevelopment-"):
+            span._name = "OfficialDevelopment-" + span.name
+            span._attributes["enduser.id"] = "DEVELOPMENT"
 
 span_enrich_processor = SpanEnrichingProcessor()
 configure_azure_monitor(connection_string=AZURE_APPLICATION_INSIGHTS_CONNECTION_STRING, span_processors=[span_enrich_processor])
