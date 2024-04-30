@@ -25,25 +25,39 @@ from azure.core.credentials import AzureKeyCredential
 from azure.ai.textanalytics import TextAnalyticsClient
 from azure.ai.textanalytics import ExtractiveSummaryAction
 from azure.ai.textanalytics import AbstractiveSummaryAction
-from pypdf import PdfReader 
+from azure.ai.language.questionanswering import QuestionAnsweringClient
+from azure.ai.language.questionanswering import models as qna
+from pdfminer.high_level import extract_text
+from unidecode import unidecode
+from azure.monitor.opentelemetry import configure_azure_monitor
+from opentelemetry import trace
+from opentelemetry.sdk.trace import SpanProcessor
 
-
-ENDPOINT = os.environ['COSMOS_DB_ENDPOINT']                                                         
-DATABASENAME = os.environ['COSMOS_DB_NAME']
 global CONTAINERNAME
-CONTAINERNAME = os.environ['COSMOS_DB_CONTAINER_NAME']                                                                   
+CONTAINERNAME = os.environ['COSMOS_DB_CONTAINER_NAME'] 
+ENDPOINT = os.environ['COSMOS_DB_ENDPOINT']                                                         
+DATABASENAME = os.environ['COSMOS_DB_NAME']                                                                  
 CREDENTIAL = os.environ['COSMOS_DB_CREDENTIAL']
-
 CONSUMER_KEY = os.environ['TWITTER_CONSUMER_KEY']                                                      #You need a Twitter dev account to get these credentials and make a tweet.
 CONSUMER_SECRET = os.environ['TWITTER_CONSUMER_SECRET']                                                 #These variables are for Twitter API credentials
 ACCESS_TOKEN = os.environ['TWITTER_ACCESS_TOKEN']
 ACCESS_TOKEN_SECRET = os.environ['TWITTER_ACCESS_TOKEN_SECRET']
 
+AZURE_COGNITIVE_ENDPOINT = os.environ['COGNITIVE_ENDPOINT']
+AZURE_COGNITIVE_KEY = os.environ['COGNITIVE_KEY']
+AZURE_COGNITIVE_SEARCH_ENDPOINT = os.environ['COGNITIVE_SEARCH_ENDPOINT']
+AZURE_COGNITIVE_SEARCH_KEY = os.environ['COGNITIVE_SEARCH_KEY']
+AZURE_APPLICATION_INSIGHTS_CONNECTION_STRING = os.environ['APPLICATIONINSIGHTS_CONNECTION_STRING']
 
-key2 = os.environ['COGNITIVE_KEY']
-endpoint2 = os.environ['COGNITIVE_ENDPOINT']
-                              
 
+class SpanEnrichingProcessor(SpanProcessor):
+    def on_end(self, span):
+        if not span.name.startswith("TESTDEV-"):
+            span._name = "TESTDEV-" + span.name
+            span._attributes["enduser.id"] = "DEPLOYDEV"
+
+span_enrich_processor = SpanEnrichingProcessor()
+configure_azure_monitor(connection_string=AZURE_APPLICATION_INSIGHTS_CONNECTION_STRING, span_processors=[span_enrich_processor])
 
 
 
@@ -51,12 +65,12 @@ app = func.FunctionApp()
 @app.function_name(name="mytimer")
 @app.schedule(schedule="0 */5 * * * 0-6", arg_name="myTimer", run_on_startup=True,
               use_monitor=False) 
-
 def timer_trigger_tweeter(myTimer: func.TimerRequest) -> None:
     utc_timestamp = datetime.datetime.utcnow().replace(
         tzinfo=datetime.timezone.utc).isoformat()
-    if myTimer.past_due:
-        logging.info('The timer is past due!')
+    global tracer
+    tracer = trace.get_tracer(__name__,tracer_provider=trace.get_tracer_provider())
+
     global DBENTRYNEWSTIMESTAMPQUERYVALUE
     global DBENTRYNEWSTIMESTAMP
     global DBID
@@ -70,7 +84,6 @@ def timer_trigger_tweeter(myTimer: func.TimerRequest) -> None:
     global titleList
     global allPubDates
     global r
-
     DBENTRYNEWSTIMESTAMPQUERYVALUE = '{:%a, %d %b %Y}'.format(datetime.datetime.utcnow())
     XMLQUERYCURRENTDATE = [f'{DBENTRYNEWSTIMESTAMPQUERYVALUE}']
     DBENTRYNEWSTIMESTAMP = '{:%Y-%m-%d %H:%M:%S.%f}'.format(datetime.datetime.utcnow())
@@ -86,26 +99,37 @@ def timer_trigger_tweeter(myTimer: func.TimerRequest) -> None:
     allPubDates = []
     r = None
     r = requests.get("https://www.nytimes.com/svc/collections/v1/publish/https://www.nytimes.com/section/us/rss.xml")
-
     countEntriesInCosmosDB()
     countEntriesInXML()
     getXMLEntriesMissingFromDB()
     searchForMissingXMLDatesInTheDB()
     list(map(compareTitlesInDBWithXMLEntriesToPreventDuplicateEntries, linelist))
-    removeDuplicateXMLEntries()
-    checkForDuplicateArticleLinksInDB(uniqueLinks)
-    list(map(insertIntoCosmosDB,uniqueDates,uniqueTitles,uniqueLinks))
-    list(map(makeTweetWithInsertedEntryInCosmosDB,uniqueDates,uniqueTitles,uniqueLinks))
 
-    try:
-        deleteAllTxtFiles()
-    except Exception as error:
-        print("An exception occured: ", error)
+    with tracer.start_as_current_span("STEP_ONE") as span:
+            removeDuplicateXMLEntries()
+            span.set_attribute("STEP_ONE_RESULTS_OUTPUT",f"{uniqueDates},{uniqueTitles},{uniqueLinks}")
+
+
+    with tracer.start_as_current_span("STEP_TWO_FOR_UPDATED_TWEET_DATA") as span:
+            checkForDuplicateArticleLinksInDB(uniqueLinks)
+            span.set_attribute("STEP_TWO_FOR_UPDATED_TWEET_DATA",f"OLD:{matchedLinks},{matchedTitles},{matchedDates},{updatedLinks},UPDATED:{updatedTitles},{updatedDates},{updatedLinks}")
+
+
+    with tracer.start_as_current_span("STEP_THREE_MAKING_TWEET") as span:
+            span.set_attribute("STEP_THREE_MAKING_TWEET",f"{uniqueDates},{uniqueTitles},{uniqueLinks}")
+            list(map(makeTweetWithInsertedEntryInCosmosDB,uniqueDates,uniqueTitles,uniqueLinks))
+
+
+    
+    deleteAllTxtFiles()
+
     titleList = None
     datesList = None
     linksList = None
     titleList = None
     allPubDates = None
+
+    
 
 
 def countEntriesInCosmosDB():
@@ -173,7 +197,7 @@ def countEntriesInXML():
     notInDB = []
 
     if filtered_dates == linelist[0]:                                                                                                           
-        print("tThere are no items that need to be added to the db")
+        print("There are no items that need to be added to the db")
         quit
     else:
         for i in filtered_dates:
@@ -508,9 +532,9 @@ def insertIntoCosmosDB(uniqueDates,uniqueTitles,uniqueLinks):
 
 
 def seleniumfunction(LinkToGet):
-    extension_path = "./remove_javascript.xpi"
-    extension_path2 = "./image_block-5.0.xpi"
-    extension_path3 = "./ublock_origin-1.56.0.xpi"
+    extension_path = "/home/site/wwwroot/remove_javascript.xpi"
+    extension_path2 = "/home/site/wwwroot/image_block-5.0.xpi"
+    extension_path3 = "/home/site/wwwroot/ublock_origin-1.56.0.xpi"
     download_dir = "/tmp/"
     options = webdriver.FirefoxOptions()
     options.set_preference("browser.download.manager.showWhenStarting",False)
@@ -530,16 +554,19 @@ def seleniumfunction(LinkToGet):
     options.set_preference("browser.helperApps.neverAsk.saveToDisk", 
                            "application/pdf, application/force-download")
     options.add_argument('--headless')
-
     driver = webdriver.Firefox(options=options)
+    driver.install_addon(path=extension_path, temporary=True)
+    driver.install_addon(path=extension_path2, temporary=True)
+    driver.install_addon(path=extension_path3, temporary=True)
 
-    driver.install_addon(extension_path, temporary=True)
-    driver.install_addon(extension_path2, temporary=True)
-    driver.install_addon(extension_path3, temporary=True)
-
-    driver.get(LinkToGet)   
+    
+    try:
+        driver.get(LinkToGet)
+        print("SeleniumBrowser obtained News Link")   
+    except Exception as error:
+        print("SeleniumBrowser ran into an exception:", error)
     driver.switch_to.window(driver.window_handles[0])
-    time.sleep(2)
+
 
     def driverScriptsToExecute():
         driver.execute_script("""
@@ -582,8 +609,89 @@ def seleniumfunction(LinkToGet):
         if (element)
         element.parentNode.removeChild(element);
         """)
+        driver.execute_script("""
+        var element = document.querySelector(".css-sovreq");
+        if (element)
+        element.parentNode.removeChild(element);
+        """)
+        driver.execute_script("""
+        var element = document.querySelector(".css-1f2g8uf");
+        if (element)
+        element.parentNode.removeChild(element);
+        """)
+        driver.execute_script("""
+        var element = document.querySelector(".css-7hsod0");
+        if (element)
+        element.parentNode.removeChild(element);
+        """)
+        driver.execute_script("""
+        var element = document.querySelector(".css-d754w4");
+        if (element)
+        element.parentNode.removeChild(element);
+        """)
+        driver.execute_script("""
+        var element = document.querySelector(".css-1lpvp6o");
+        if (element)
+        element.parentNode.removeChild(element);
+        """)
+        driver.execute_script("""
+        var element = document.querySelector(".css-1xqucq6");
+        if (element)
+        element.parentNode.removeChild(element);
+        """)
+        driver.execute_script("""
+        var element = document.querySelector(".css-gq7jix");
+        if (element)
+        element.parentNode.removeChild(element);
+        """)
+        driver.execute_script("""
+        var element = document.querySelector(".css-1fdlqc e3rgvcb0");
+        if (element)
+        element.parentNode.removeChild(element);
+        """)
+        driver.execute_script("""
+        var children =  document.querySelectorAll("div[id='fullBleedHeaderContent']");
+        var childArray = Array.prototype.slice.call(children);
+        childArray.forEach(function(child){
+          child.parentNode.removeChild(child);})
+        """)
+        driver.execute_script("""
+        var children =  document.querySelectorAll("div[data-testid='imageblock-wrapper']");
+        var childArray = Array.prototype.slice.call(children);
+        childArray.forEach(function(child){
+          child.parentNode.removeChild(child);})
+        """)
+        driver.execute_script("""
+        var children =  document.querySelectorAll("div[class='g-header-container g-theme-news g-align-center g-style-default svelte-1likblp']");
+        var childArray = Array.prototype.slice.call(children);
+        childArray.forEach(function(child){
+          child.parentNode.removeChild(child);})
+        """)
+        driver.execute_script("""
+        var children =  document.querySelectorAll("div[id='scrolly-instance-1']");
+        var childArray = Array.prototype.slice.call(children);
+        childArray.forEach(function(child){
+          child.parentNode.removeChild(child);})
+        """)
 
     driverScriptsToExecute()
+
+    if LinkToGet.startswith("https://www.nytimes.com/interactive/"):
+        driver.execute_script("""
+        var element = document.querySelectorAll("figure");
+        if (element)
+        var childArray = Array.prototype.slice.call(element);
+        childArray.forEach(function(child){
+          child.parentNode.removeChild(child);})
+        """)
+    else:
+        driver.execute_script("""
+        var children =  document.querySelectorAll("section[data-testid='inline-interactive']");                         
+        var childArray = Array.prototype.slice.call(children);
+        childArray.forEach(function(child){
+          child.parentNode.removeChild(child);})
+        """) 
+
 
     RATIO_MULTIPLIER = 2.5352112676056335
     S = lambda X: driver.execute_script('return document.body.parentNode.scroll'+X)
@@ -593,44 +701,61 @@ def seleniumfunction(LinkToGet):
     print_options = PrintOptions()
     print_options.page_height = (height*pdf_scaler)*RATIO_MULTIPLIER
     print_options.page_width = (weight*pdf_scaler)*RATIO_MULTIPLIER
-    
+
 
     pdf = driver.print_page(print_options=print_options)
-    driver.close()
     pdf_bytes = base64.b64decode(pdf)
 
     with open("/tmp/seleniumOutput.pdf", "wb") as fh:                                   
         fh.write(pdf_bytes)
 
 
-def pyPDFpdfToTXT():
-    reader = PdfReader('/tmp/seleniumOutput.pdf') 
-    page = reader.pages[0] 
-    text = page.extract_text()
+
+def convertPDF_To_txt():
+    text = extract_text('/tmp/seleniumOutput.pdf', maxpages=1) 
     with open("/tmp/testoutput.txt", "a", encoding='utf-8') as file:
-        file.write(text)
+        file.write(text.replace("\n"," ").strip())
 
-
-def authenticate_client():
-    ta_credential = AzureKeyCredential(key2)
-    text_analytics_client = TextAnalyticsClient(
-            endpoint=endpoint2, 
-            credential=ta_credential)
-    return text_analytics_client
-
-
-def sample_extractive_summarization():
-    global summaryToTweet
-    summaryToTweet = None
-
-    client = authenticate_client()
+ 
+def RemoveUnexpectedHTML_Link_From_txt(LinkToGet):
+    global indexesOfLinkContents
+    indexesOfLinkContents = []
+    global textToSummarize
     f = open("/tmp/testoutput.txt", "r", encoding='utf-8')
     textToSummarize = f.read()
     f.close()
 
-    document = [
-        textToSummarize
-    ]
+    if textToSummarize.startswith(LinkToGet):
+        print("summary STARTS with a HTML LINK, summary NEEDS TO BE MODIFIED!!!!!!!!!!!!")
+        indexesOfLinkContents = textToSummarize.split(LinkToGet)
+    else:
+        print("summary does NOT start with a HTML LINK, summary does NOT need to be modified")
+
+
+
+
+def azureAI_AuthenticateClient():
+    TA_credential = AzureKeyCredential(AZURE_COGNITIVE_KEY)
+    text_analytics_client = TextAnalyticsClient(
+            endpoint=AZURE_COGNITIVE_ENDPOINT, 
+            credential=TA_credential)
+    return text_analytics_client
+
+
+
+def azureAI_NewsContentSummarization():
+    global summaryToTweet
+    summaryToTweet = None
+    client = azureAI_AuthenticateClient()
+
+    if indexesOfLinkContents != []:
+        document = [
+            unidecode(indexesOfLinkContents[-1])
+        ]
+    else:
+        document = [
+            unidecode(textToSummarize)
+        ]
     poller = client.begin_abstract_summary(document, sentence_count=5)
     abstract_summary_results = poller.result()
     for result in abstract_summary_results:
@@ -642,49 +767,85 @@ def sample_extractive_summarization():
             print("...Is an error with code '{}' and message '{}'".format(
                 result.error.code, result.error.message
             ))
-
-            poller = client.begin_analyze_actions(document,actions=[ExtractiveSummaryAction(max_sentence_count=5)],)            #if the initial abstractive summary fails, fall back to an extractive summary instead
+            poller = client.begin_extract_summary(document,max_sentence_count=6)                                                    #if the initial abstractive summary fails, fall back to an extractive summary instead
             document_results = poller.result()
             for result in document_results:
-                extract_summary_result = result[0]  # first document, first result
-                if extract_summary_result.is_error:
+                extract_summary_result = result["sentences"][0]["text"]
+                if result.is_error is True:
                     print("...Is an error with code '{}' and message '{}'".format(
                         extract_summary_result.code, extract_summary_result.message
                         ))
                 else:
                     print("EXTRACTIVE summary complete since an ABSTRACTIVE one wasn't possible : \n{}".format(
-                        " ".join([sentence.text for sentence in extract_summary_result.sentences]))
-                    )
-                    summaryToTweet = "{}".format(" ".join([sentence.text for sentence in extract_summary_result.sentences]))
+                        " ".join([sentence.text for sentence in result.sentences]))
+                    )                    
+                    summaryToTweet = "{}".format(" ".join([sentence.text for sentence in result.sentences]))
+
+    
+    QNA_credential = AzureKeyCredential(AZURE_COGNITIVE_SEARCH_KEY)
+    searchClient = QuestionAnsweringClient(AZURE_COGNITIVE_SEARCH_ENDPOINT, QNA_credential)
+    listverContents = [summaryToTweet]
+
+    with searchClient:
+        question="Return to me the same exact text given but remove all the language issues from it Keep the same sentiment of the text including the main subject of the text Do not to include the names of the authors or the date of when the text was written" #Prompt is more effective when it is sloppy like shown
+        output = searchClient.get_answers_from_text(question=question, text_documents=listverContents)
+    print("unformatted ans:")
+    print("Q: {}".format(question))
+    print(output.answers[0].answer)
+    summaryToTweet = output.answers[0].answer
 
 
 def createPNGFromTXT():
     totalLengthOfImage = 0
-  
     lines = textwrap.wrap(summaryToTweet, width=35, fix_sentence_endings=True)
-  
+
+
+    if summaryToTweet.endswith("."):
+        print("summary ends with period, summary does NOT need to be modified")
+    else:
+        print("summary does NOT end with a period, summary NEEDS to be modified")
+        indexesContainingPeriods = []
+
+        for line in lines:
+            if line.find(".") > -1:
+                indexesContainingPeriods.append(lines.index(line,0))
+    
+        if indexesContainingPeriods != []:
+            lineThatEndsInPeriod = lines[indexesContainingPeriods[-1]].rsplit(".")
+            while len(lines) != int(indexesContainingPeriods[-1]):
+                lines.pop()
+            lines.append(lineThatEndsInPeriod[0] + ".")
+
+
     for line in lines:
-        if len(lines) <= 3:
-            totalLengthOfImage = totalLengthOfImage + 30
-        elif len(lines) <= 6:
-            totalLengthOfImage = totalLengthOfImage + 28
-        elif len(lines) <= 9:
-            totalLengthOfImage = totalLengthOfImage + 26
-        elif len(lines) <= 12:
-            totalLengthOfImage = totalLengthOfImage + 24
-        elif len(lines) <= 15:
-            totalLengthOfImage = totalLengthOfImage + 22
-        elif len(lines) <= 18:
-            totalLengthOfImage = totalLengthOfImage + 20
-        else:
-            totalLengthOfImage = totalLengthOfImage + 20
-          
+       if len(lines) <= 3:
+           totalLengthOfImage = totalLengthOfImage + 30
+       elif len(lines) <= 6:
+           totalLengthOfImage = totalLengthOfImage + 28
+       elif len(lines) <= 9:
+           totalLengthOfImage = totalLengthOfImage + 26
+       elif len(lines) <= 12:
+           totalLengthOfImage = totalLengthOfImage + 24
+       elif len(lines) <= 15:
+           totalLengthOfImage = totalLengthOfImage + 22
+       elif len(lines) <= 18:
+           totalLengthOfImage = totalLengthOfImage + 20
+       else:
+           totalLengthOfImage = totalLengthOfImage + 20
+         
     font = ImageFont.truetype("PublicSans-Regular.otf", 18)
     img = Image.new('RGB', (350, totalLengthOfImage), (0, 0, 0))
     d = ImageDraw.Draw(img)
-    d.multiline_text((10, 10), '\n'.join(lines), fill=(255, 255, 255), align="left", spacing=1, font=font)
-    img.save("/tmp/MediaToTweet.png", 'png')
+    
 
+    if lines[-1].endswith("."):
+        d.multiline_text((10, 10), '\n'.join(lines), fill=(255, 255, 255), align="left", spacing=1, font=font)
+    else:
+        print("No periods are found, setting default period placement!")
+        d.multiline_text((10, 10), '\n'.join(lines) + ".", fill=(255, 255, 255), align="left", spacing=1, font=font)
+
+
+    img.save("/tmp/MediaToTweet.png", 'png')
 
 def summarizationFileDeletion():
     with os.scandir(path="/tmp/") as it:
@@ -695,10 +856,17 @@ def summarizationFileDeletion():
             if entry.name.startswith('testoutput.') and entry.is_file():
                 print(entry.name)
                 os.remove(entry)
+            if entry.name.startswith('MediaToTweet.') and entry.is_file():
+                print(entry.name)
+                os.remove(entry)
     print("The program has succesfully executed. Summarization Files from /tmp in the Linux OS have been deleted")
 
 
 def makeTweetWithInsertedEntryInCosmosDB(datesToBeInsertedIntoDB,titlesToBeInsertedIntoDB,linksToBeInsertedIntoDB):
+    if datesToBeInsertedIntoDB == []:
+        print("This Should Never be Printed")
+        return None
+    
     print("Making Tweet")
     auth = tweepy.OAuthHandler(CONSUMER_KEY, CONSUMER_SECRET)
     auth.set_access_token(ACCESS_TOKEN, ACCESS_TOKEN_SECRET)
@@ -710,24 +878,48 @@ def makeTweetWithInsertedEntryInCosmosDB(datesToBeInsertedIntoDB,titlesToBeInser
     cleanedDate = datesToBeInsertedIntoDB.replace(" +0000", "")
     cleanedTweetDate.append(cleanedDate)
     
-
-    if updatedLinks != [] and linksToBeInsertedIntoDB in updatedLinks:
-        response = client.create_tweet(text = "Article:" +matchedTitles[updatedLinks.index(linksToBeInsertedIntoDB)]+ "\nHad it's title updated to:\n" +titlesToBeInsertedIntoDB+ "\nAt:\n" +cleanedTweetDate[0]+ "\n" +linksToBeInsertedIntoDB+"")
-        print(response)
-    else:                                                                                                                #Try except is here incase the rate limit(50 posts per day. 1,500 per month) for the Twitter API is reached or a duplicate tweet is trying to be tweeted.
-        print("Making a new/non-updated Tweet")                                                                             #It also functions as a third duplicate check since Twitter doesnt allow Tweets with the exact same content to be tweeted twice.           
-        seleniumfunction(linksToBeInsertedIntoDB)           
-        pyPDFpdfToTXT()
-        sample_extractive_summarization()
-        createPNGFromTXT()
-        summarizationFileDeletion()
-        media_path = "/tmp/MediaToTweet.png"
-        try:
-            uploaded_media = api.media_upload(media_path)
-            response = client.create_tweet(text = f"{cleanedDate},\n{titlesToBeInsertedIntoDB}\n{linksToBeInsertedIntoDB} ""Article summary below: \n", media_ids=[uploaded_media.media_id])
+    with tracer.start_as_current_span("STEP_FOUR_TWEET_RESPONSE") as span:
+        if updatedLinks != [] and linksToBeInsertedIntoDB in updatedLinks:
+            response = client.create_tweet(text = "At: " +cleanedTweetDate[0]+ "\n" "Article: " +matchedTitles[updatedLinks.index(linksToBeInsertedIntoDB)]+ "\nHad it's title updated to:\n" +titlesToBeInsertedIntoDB+  "\n" +linksToBeInsertedIntoDB+"")
             print(response)
-        except Exception as error:
-            print("An exception occured:", error)
+            insertIntoCosmosDB(datesToBeInsertedIntoDB,titlesToBeInsertedIntoDB,linksToBeInsertedIntoDB)
+            span.set_attribute("STEP_FOUR_TWEET_UPDATED_RESPONSE",f"{response}")
+            span.set_attribute("STEP_FIVE_INSERTING_INTO_DB",f"{datesToBeInsertedIntoDB},{titlesToBeInsertedIntoDB},{linksToBeInsertedIntoDB}")
+
+        else:
+            print("Making a new/non-updated Tweet")                                                                             
+            try:           
+                seleniumfunction(linksToBeInsertedIntoDB)
+            except Exception as error:
+                span.record_exception(error) 
+            try: 
+                convertPDF_To_txt()
+            except Exception as error:
+                span.record_exception(error)
+            try:
+                RemoveUnexpectedHTML_Link_From_txt(linksToBeInsertedIntoDB)
+            except Exception as error:
+                span.record_exception(error) 
+            try:
+                azureAI_NewsContentSummarization()
+            except Exception as error:
+                span.record_exception(error)
+            try: 
+                createPNGFromTXT()
+            except Exception as error:
+                span.record_exception(error)
+
+            media_path = "/tmp/MediaToTweet.png"
+            try:
+                uploaded_media = api.media_upload(media_path)
+                summarizationFileDeletion()
+                response = client.create_tweet(text = f"{cleanedDate},\n{titlesToBeInsertedIntoDB}\n{linksToBeInsertedIntoDB} ""Article summary below: \n", media_ids=[uploaded_media.media_id])
+                span.set_attribute("STEP_FOUR_TWEET_NEW_RESPONSE",f"{response}")
+                print(response)
+                insertIntoCosmosDB(datesToBeInsertedIntoDB,titlesToBeInsertedIntoDB,linksToBeInsertedIntoDB)
+                span.set_attribute("STEP_FIVE_INSERTING_INTO_DB",f"{datesToBeInsertedIntoDB},{titlesToBeInsertedIntoDB},{linksToBeInsertedIntoDB}")
+            except Exception as error:
+                print("An exception occured with the last tweet posting process:", error)
 
 
 def deleteAllTxtFiles():
