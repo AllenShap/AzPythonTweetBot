@@ -63,7 +63,7 @@ resource "azurerm_cognitive_account" "CA-USNYTPythonTwitterBot" {
   location            = azurerm_resource_group.RG-USNYTPythonTwitterBot.location
   resource_group_name = azurerm_resource_group.RG-USNYTPythonTwitterBot.name
   kind                = "TextAnalytics"
-  sku_name            = "F0"
+  sku_name            = "S"
 
   custom_question_answering_search_service_id  = azurerm_search_service.Search-USNYTPythonTwitterBot.id
   custom_question_answering_search_service_key = azurerm_search_service.Search-USNYTPythonTwitterBot.primary_key
