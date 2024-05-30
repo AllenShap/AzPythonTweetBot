@@ -11,7 +11,7 @@ Goals for the project:
 
 
 Complicated part:
-- [ ] 1. Seperate the functions into their own files so each function is in it's own Docker container and the end goal is still achieved. (not started)
+- [ ] 1. Seperate the functions into their own files so each function is in it's own Docker container and the end goal is still achieved. (In-Progress as of 5/30/2024)
    - [ ] Do the same thing for Kubernetes which would have a cluster with each function in it's own pod or container. (perhaps using Argo Workflows and AKS)  (not started)
 
 
