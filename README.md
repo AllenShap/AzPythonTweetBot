@@ -1,5 +1,5 @@
 # AzPythonTweetBot (WIP)
-A New York Times automatic tweet bot which has a goal to tweet every new article posted in 5 minutes update intervals in the US section of NYT using cronjobs. Connected to an Azure Cosmos DB. https://twitter.com/NYTimesXBot
+A New York Times automatic tweet bot which has a goal to tweet every new article posted in 5 minute intervals in the US section of NYT using cronjobs. Connected to an Azure Cosmos DB. https://twitter.com/NYTimesXBot
 
 I plan to dockerize this and also integrate it with Kubernetes. Each function of the program is aimed to be in it's own Docker/Kubernetes container in order to decouple it as much as possible and to purposely over-complicate it for the sake of learning.
 
