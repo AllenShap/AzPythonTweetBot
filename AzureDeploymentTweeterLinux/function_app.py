@@ -122,7 +122,6 @@ def timer_trigger_tweeter(myTimer: func.TimerRequest) -> None:
 
     
     deleteAllTxtFiles()
-
     titleList = None
     datesList = None
     linksList = None
@@ -130,8 +129,6 @@ def timer_trigger_tweeter(myTimer: func.TimerRequest) -> None:
     allPubDates = None
 
     
-
-
 def countEntriesInCosmosDB():
     cosmosDBQuery = None
     EntryNewsTimestamp = None
@@ -167,6 +164,8 @@ def countEntriesInCosmosDB():
         with open("/tmp/MyFunction.Function1Output.txt","a", encoding='utf-8') as file_write:
             new = '\n'
             print(f"{new.join(listOfItemsInDB)}", file=file_write)
+
+
 
 
 def countEntriesInXML(): 
@@ -565,6 +564,7 @@ def seleniumfunction(LinkToGet):
         print("SeleniumBrowser obtained News Link")   
     except Exception as error:
         print("SeleniumBrowser ran into an exception:", error)
+        return None
     driver.switch_to.window(driver.window_handles[0])
 
 
@@ -704,17 +704,22 @@ def seleniumfunction(LinkToGet):
 
 
     pdf = driver.print_page(print_options=print_options)
-    pdf_bytes = base64.b64decode(pdf)
-
-    with open("/tmp/seleniumOutput.pdf", "wb") as fh:                                   
-        fh.write(pdf_bytes)
+    if pdf == None:
+        return None
+    else:
+        pdf_bytes = base64.b64decode(pdf)
+        with open("/tmp/seleniumOutput.pdf", "wb") as fh:                                   
+            fh.write(pdf_bytes)
 
 
 
 def convertPDF_To_txt():
     text = extract_text('/tmp/seleniumOutput.pdf', maxpages=1) 
-    with open("/tmp/testoutput.txt", "a", encoding='utf-8') as file:
-        file.write(text.replace("\n"," ").strip())
+    if text == None:
+        return None
+    else:
+        with open("/tmp/testoutput.txt", "a", encoding='utf-8') as file:
+            file.write(text.replace("\n"," ").strip())
 
  
 def RemoveUnexpectedHTML_Link_From_txt(LinkToGet):
@@ -725,11 +730,14 @@ def RemoveUnexpectedHTML_Link_From_txt(LinkToGet):
     textToSummarize = f.read()
     f.close()
 
-    if textToSummarize.startswith(LinkToGet):
-        print("summary STARTS with a HTML LINK, summary NEEDS TO BE MODIFIED!!!!!!!!!!!!")
-        indexesOfLinkContents = textToSummarize.split(LinkToGet)
+    if f or textToSummarize == None:
+        return None
     else:
-        print("summary does NOT start with a HTML LINK, summary does NOT need to be modified")
+        if textToSummarize.startswith(LinkToGet):
+            print("summary STARTS with a HTML LINK, summary NEEDS TO BE MODIFIED!!!!!!!!!!!!")
+            indexesOfLinkContents = textToSummarize.split(LinkToGet)
+        else:
+            print("summary does NOT start with a HTML LINK, summary does NOT need to be modified")
 
 
 
@@ -748,14 +756,18 @@ def azureAI_NewsContentSummarization():
     summaryToTweet = None
     client = azureAI_AuthenticateClient()
 
+
     if indexesOfLinkContents != []:
         document = [
             unidecode(indexesOfLinkContents[-1])
         ]
     else:
-        document = [
-            unidecode(textToSummarize)
-        ]
+        if textToSummarize == None:
+            return None
+        else:
+            document = [
+                unidecode(textToSummarize)
+            ]
     poller = client.begin_abstract_summary(document, sentence_count=5)
     abstract_summary_results = poller.result()
     for result in abstract_summary_results:
@@ -796,56 +808,59 @@ def azureAI_NewsContentSummarization():
 
 
 def createPNGFromTXT():
-    totalLengthOfImage = 0
-    lines = textwrap.wrap(summaryToTweet, width=35, fix_sentence_endings=True)
-
-
-    if summaryToTweet.endswith("."):
-        print("summary ends with period, summary does NOT need to be modified")
+    if summaryToTweet == None:
+        return None
     else:
-        print("summary does NOT end with a period, summary NEEDS to be modified")
-        indexesContainingPeriods = []
+        totalLengthOfImage = 0
+        lines = textwrap.wrap(summaryToTweet, width=35, fix_sentence_endings=True)
+
+
+        if summaryToTweet.endswith("."):
+            print("summary ends with period, summary does NOT need to be modified")
+        else:
+            print("summary does NOT end with a period, summary NEEDS to be modified")
+            indexesContainingPeriods = []
+
+            for line in lines:
+                if line.find(".") > -1:
+                    indexesContainingPeriods.append(lines.index(line,0))
+
+            if indexesContainingPeriods != []:
+                lineThatEndsInPeriod = lines[indexesContainingPeriods[-1]].rsplit(".")
+                while len(lines) != int(indexesContainingPeriods[-1]):
+                    lines.pop()
+                lines.append(lineThatEndsInPeriod[0] + ".")
+
 
         for line in lines:
-            if line.find(".") > -1:
-                indexesContainingPeriods.append(lines.index(line,0))
-    
-        if indexesContainingPeriods != []:
-            lineThatEndsInPeriod = lines[indexesContainingPeriods[-1]].rsplit(".")
-            while len(lines) != int(indexesContainingPeriods[-1]):
-                lines.pop()
-            lines.append(lineThatEndsInPeriod[0] + ".")
+           if len(lines) <= 3:
+               totalLengthOfImage = totalLengthOfImage + 30
+           elif len(lines) <= 6:
+               totalLengthOfImage = totalLengthOfImage + 28
+           elif len(lines) <= 9:
+               totalLengthOfImage = totalLengthOfImage + 26
+           elif len(lines) <= 12:
+               totalLengthOfImage = totalLengthOfImage + 24
+           elif len(lines) <= 15:
+               totalLengthOfImage = totalLengthOfImage + 22
+           elif len(lines) <= 18:
+               totalLengthOfImage = totalLengthOfImage + 20
+           else:
+               totalLengthOfImage = totalLengthOfImage + 20
+
+        font = ImageFont.truetype("PublicSans-Regular.otf", 18)
+        img = Image.new('RGB', (350, totalLengthOfImage), (0, 0, 0))
+        d = ImageDraw.Draw(img)
 
 
-    for line in lines:
-       if len(lines) <= 3:
-           totalLengthOfImage = totalLengthOfImage + 30
-       elif len(lines) <= 6:
-           totalLengthOfImage = totalLengthOfImage + 28
-       elif len(lines) <= 9:
-           totalLengthOfImage = totalLengthOfImage + 26
-       elif len(lines) <= 12:
-           totalLengthOfImage = totalLengthOfImage + 24
-       elif len(lines) <= 15:
-           totalLengthOfImage = totalLengthOfImage + 22
-       elif len(lines) <= 18:
-           totalLengthOfImage = totalLengthOfImage + 20
-       else:
-           totalLengthOfImage = totalLengthOfImage + 20
-         
-    font = ImageFont.truetype("PublicSans-Regular.otf", 18)
-    img = Image.new('RGB', (350, totalLengthOfImage), (0, 0, 0))
-    d = ImageDraw.Draw(img)
-    
-
-    if lines[-1].endswith("."):
-        d.multiline_text((10, 10), '\n'.join(lines), fill=(255, 255, 255), align="left", spacing=1, font=font)
-    else:
-        print("No periods are found, setting default period placement!")
-        d.multiline_text((10, 10), '\n'.join(lines) + ".", fill=(255, 255, 255), align="left", spacing=1, font=font)
+        if lines[-1].endswith("."):
+            d.multiline_text((10, 10), '\n'.join(lines), fill=(255, 255, 255), align="left", spacing=1, font=font)
+        else:
+            print("No periods are found, setting default period placement!")
+            d.multiline_text((10, 10), '\n'.join(lines) + ".", fill=(255, 255, 255), align="left", spacing=1, font=font)
 
 
-    img.save("/tmp/MediaToTweet.png", 'png')
+        img.save("/tmp/MediaToTweet.png", 'png')
 
 def summarizationFileDeletion():
     with os.scandir(path="/tmp/") as it:
@@ -860,6 +875,7 @@ def summarizationFileDeletion():
                 print(entry.name)
                 os.remove(entry)
     print("The program has succesfully executed. Summarization Files from /tmp in the Linux OS have been deleted")
+
 
 
 def makeTweetWithInsertedEntryInCosmosDB(datesToBeInsertedIntoDB,titlesToBeInsertedIntoDB,linksToBeInsertedIntoDB):
@@ -880,8 +896,9 @@ def makeTweetWithInsertedEntryInCosmosDB(datesToBeInsertedIntoDB,titlesToBeInser
     
     with tracer.start_as_current_span("STEP_FOUR_TWEET_RESPONSE") as span:
         if updatedLinks != [] and linksToBeInsertedIntoDB in updatedLinks:
+            response = "placeholder would be a tweet text"
+
             response = client.create_tweet(text = "At: " +cleanedTweetDate[0]+ "\n" "Article: " +matchedTitles[updatedLinks.index(linksToBeInsertedIntoDB)]+ "\nHad it's title updated to:\n" +titlesToBeInsertedIntoDB+  "\n" +linksToBeInsertedIntoDB+"")
-            print(response)
             insertIntoCosmosDB(datesToBeInsertedIntoDB,titlesToBeInsertedIntoDB,linksToBeInsertedIntoDB)
             span.set_attribute("STEP_FOUR_TWEET_UPDATED_RESPONSE",f"{response}")
             span.set_attribute("STEP_FIVE_INSERTING_INTO_DB",f"{datesToBeInsertedIntoDB},{titlesToBeInsertedIntoDB},{linksToBeInsertedIntoDB}")
