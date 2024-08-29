@@ -564,6 +564,7 @@ def seleniumfunction(LinkToGet):
         print("SeleniumBrowser obtained News Link")   
     except Exception as error:
         print("SeleniumBrowser ran into an exception:", error)
+        exit()
         return None
     driver.switch_to.window(driver.window_handles[0])
 
@@ -709,6 +710,7 @@ def seleniumfunction(LinkToGet):
 
     pdf = driver.print_page(print_options=print_options)
     if pdf == None:
+        exit()
         return None
     else:
         pdf_bytes = base64.b64decode(pdf)
@@ -720,6 +722,7 @@ def seleniumfunction(LinkToGet):
 def convertPDF_To_txt():
     text = extract_text('/tmp/seleniumOutput.pdf', maxpages=1) 
     if text == None:
+        exit()
         return None
     else:
         with open("/tmp/testoutput.txt", "a", encoding='utf-8') as file:
@@ -735,6 +738,7 @@ def RemoveUnexpectedHTML_Link_From_txt(LinkToGet):
     f.close()
 
     if f or textToSummarize == None:
+        exit()
         return None
     else:
         if textToSummarize.startswith(LinkToGet):
@@ -767,6 +771,7 @@ def azureAI_NewsContentSummarization():
         ]
     else:
         if textToSummarize == None:
+            exit()
             return None
         else:
             document = [
@@ -813,6 +818,7 @@ def azureAI_NewsContentSummarization():
 
 def createPNGFromTXT():
     if summaryToTweet == None:
+        exit()
         return None
     else:
         totalLengthOfImage = 0
@@ -900,7 +906,6 @@ def makeTweetWithInsertedEntryInCosmosDB(datesToBeInsertedIntoDB,titlesToBeInser
     
     with tracer.start_as_current_span("STEP_FOUR_TWEET_RESPONSE") as span:
         if updatedLinks != [] and linksToBeInsertedIntoDB in updatedLinks:
-            response = "placeholder would be a tweet text"
 
             response = client.create_tweet(text = "At: " +cleanedTweetDate[0]+ "\n" "Article: " +matchedTitles[updatedLinks.index(linksToBeInsertedIntoDB)]+ "\nHad it's title updated to:\n" +titlesToBeInsertedIntoDB+  "\n" +linksToBeInsertedIntoDB+"")
             insertIntoCosmosDB(datesToBeInsertedIntoDB,titlesToBeInsertedIntoDB,linksToBeInsertedIntoDB)
