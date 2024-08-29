@@ -693,14 +693,18 @@ def seleniumfunction(LinkToGet):
         """) 
 
 
-    RATIO_MULTIPLIER = 2.5352112676056335
-    S = lambda X: driver.execute_script('return document.body.parentNode.scroll'+X)
-    pdf_scaler = .01
-    height = S('Height')
-    weight = S('Width')
-    print_options = PrintOptions()
-    print_options.page_height = (height*pdf_scaler)*RATIO_MULTIPLIER
-    print_options.page_width = (weight*pdf_scaler)*RATIO_MULTIPLIER
+    try:
+      RATIO_MULTIPLIER = 2.5352112676056335
+      S = lambda X: driver.execute_script('return document.body.parentNode.scroll'+X)
+      pdf_scaler = .01
+      height = S('Height')
+      weight = S('Width')
+      print_options = PrintOptions()
+      print_options.page_height = (height*pdf_scaler)*RATIO_MULTIPLIER
+      print_options.page_width = (weight*pdf_scaler)*RATIO_MULTIPLIER
+    except Exception as error:
+        print("printing selenium ran into an exception:", error)
+        exit()
 
 
     pdf = driver.print_page(print_options=print_options)
