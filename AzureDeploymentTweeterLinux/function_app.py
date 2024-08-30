@@ -559,13 +559,13 @@ def seleniumfunction(LinkToGet):
     driver.install_addon(path=extension_path3, temporary=True)
 
     
+
     try:
         driver.get(LinkToGet)
         print("SeleniumBrowser obtained News Link")   
     except Exception as error:
         print("SeleniumBrowser ran into an exception:", error)
         exit()
-        return None
     driver.switch_to.window(driver.window_handles[0])
 
 
@@ -694,6 +694,7 @@ def seleniumfunction(LinkToGet):
         """) 
 
 
+    
     try:
       RATIO_MULTIPLIER = 2.5352112676056335
       S = lambda X: driver.execute_script('return document.body.parentNode.scroll'+X)
@@ -708,10 +709,10 @@ def seleniumfunction(LinkToGet):
         exit()
 
 
+
     pdf = driver.print_page(print_options=print_options)
     if pdf == None:
         exit()
-        return None
     else:
         pdf_bytes = base64.b64decode(pdf)
         with open("/tmp/seleniumOutput.pdf", "wb") as fh:                                   
@@ -723,7 +724,6 @@ def convertPDF_To_txt():
     text = extract_text('/tmp/seleniumOutput.pdf', maxpages=1) 
     if text == None:
         exit()
-        return None
     else:
         with open("/tmp/testoutput.txt", "a", encoding='utf-8') as file:
             file.write(text.replace("\n"," ").strip())
@@ -737,9 +737,10 @@ def RemoveUnexpectedHTML_Link_From_txt(LinkToGet):
     textToSummarize = f.read()
     f.close()
 
-    if f or textToSummarize == None:
+
+    if textToSummarize == None:
         exit()
-        return None
+
     else:
         if textToSummarize.startswith(LinkToGet):
             print("summary STARTS with a HTML LINK, summary NEEDS TO BE MODIFIED!!!!!!!!!!!!")
@@ -772,7 +773,6 @@ def azureAI_NewsContentSummarization():
     else:
         if textToSummarize == None:
             exit()
-            return None
         else:
             document = [
                 unidecode(textToSummarize)
@@ -819,7 +819,6 @@ def azureAI_NewsContentSummarization():
 def createPNGFromTXT():
     if summaryToTweet == None:
         exit()
-        return None
     else:
         totalLengthOfImage = 0
         lines = textwrap.wrap(summaryToTweet, width=35, fix_sentence_endings=True)
