@@ -99,6 +99,10 @@ def timer_trigger_tweeter(myTimer: func.TimerRequest) -> None:
     allPubDates = []
     r = None
     r = requests.get("https://www.nytimes.com/svc/collections/v1/publish/https://www.nytimes.com/section/us/rss.xml")
+
+    deleteAllTxtFiles()             #if the previous run of this program ends up calling exit(), it will delete all .txt files from the previous session since exit()-ing an azure function doesn't actually reset the worker and clear /tmp/.
+    summarizationFileDeletion()
+
     countEntriesInCosmosDB()
     countEntriesInXML()
     getXMLEntriesMissingFromDB()
@@ -125,7 +129,6 @@ def timer_trigger_tweeter(myTimer: func.TimerRequest) -> None:
     titleList = None
     datesList = None
     linksList = None
-    titleList = None
     allPubDates = None
 
     
@@ -957,3 +960,4 @@ def deleteAllTxtFiles():
                 print(entry.name)
                 os.remove(entry)
     print("The program has succesfully executed. Files from /tmp in the Linux OS have been deleted")
+
