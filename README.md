@@ -11,6 +11,6 @@ Some of the coding decisions I made are as a result of this being a complete per
 
 
 ## Docker Implementation
-I was going to just make a fork of this repo for my Dockerized implementation of this project but that's unfortunately not possible since I'm the owner.
+I was going to just make a fork of this repo for my dockerized implementation of this project but that's unfortunately not possible since I'm the owner.
 - The dockerized repo of this project can be found [here](https://github.com/AllenShap/Dockerized-AzPythonTweetBot)
 - The dockerized version changes the project to use a selfhosted API instead of local .txt files, changes some of the logic of the bot to accomodate the API implementation, and implements a VPN for added complexity to the project for fun.
